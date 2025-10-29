@@ -33,6 +33,9 @@ Examples:
   # Identify a single torrent
   torrent-match identify "The.Matrix.1999.1080p.BluRay.x264"
 
+  # Identify from a .torrent file
+  torrent-match identify --torrent-file /path/to/file.torrent
+
   # With detailed output
   torrent-match identify "Inception.2010" --detail
 
@@ -72,8 +75,8 @@ Environment Variables:
     # Identify command
     identify_parser = subparsers.add_parser(
         'identify',
-        help='Identify a single torrent',
-        description='Identify media content from a torrent name'
+        help='Identify a single torrent name or .torrent file',
+        description='Identify media content from a torrent name or .torrent file'
     )
     identify_parser.add_argument(
         'name',
@@ -83,7 +86,7 @@ Environment Variables:
     identify_parser.add_argument(
         '--files',
         nargs='+',
-        help='Optional file paths'
+        help='Optional file paths (ignored when --torrent-file is set)'
     )
     identify_parser.add_argument(
         '--detail',
