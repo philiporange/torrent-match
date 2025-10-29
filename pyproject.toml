@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torrent-match"
+version = "0.1.0"
+description = "Media identification for torrents - identify movies and TV shows from torrent names"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "CC0-1.0"}
+authors = [
+    {name = "Philip Orange", email = "git@philiporange.com"}
+]
+keywords = ["torrent", "media", "identification", "tmdb", "imdb", "movie", "tv", "parser"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Multimedia :: Video",
+    "License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "guessit>=3.4.0",
+    "parse-torrent-title>=2.0.0",
+    "rebulk>=3.1.0",
+    "tmdbsimple>=2.9.1",
+    "redislite>=6.2.0",
+    "requests>=2.31.0",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/philiporange/torrent-match"
+Repository = "https://github.com/philiporange/torrent-match"
+Issues = "https://github.com/philiporange/torrent-match/issues"
+
+[project.scripts]
+torrent-match = "torrent_match.cli:main"
+
+[tool.setuptools]
+packages = ["torrent_match", "torrent_detector", "torrent_detector.parsers"]
+
+[tool.setuptools.package-data]
+torrent_match = ["*.md"]
+torrent_detector = ["*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--strict-markers",
+    "--cov=torrent_match",
+    "--cov=torrent_detector",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "silent"
+ignore_missing_imports = true
