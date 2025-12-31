@@ -23,6 +23,13 @@ parsers agreed on the same title, weighted by their trust levels.
 
 Parser-provided confidence values are INTENTIONALLY IGNORED. Only parser agreement
 on the title matters for the final confidence score.
+
+Automatic LLM Fallback:
+When the consensus confidence is LOW or VERY_LOW, the system automatically invokes
+the LLM parser (if available) as a fallback. The LLM parser's output is used directly,
+replacing the low-confidence consensus result. The LLM result is validated with TMDB
+if possible, and assigned MEDIUM confidence. This ensures difficult or ambiguous cases
+get a second chance at accurate parsing.
 """
 
 import os
@@ -49,9 +56,17 @@ class TorrentContentDetector:
 
     This class coordinates the entire detection pipeline:
     1. Pre-processes torrent names and file structures
-    2. Runs multiple parsers in sequence
-    3. Validates results against TMDB
-    4. Returns the best possible identification
+    2. Runs multiple parsers using consensus-based voting
+    3. Automatically invokes LLM parser for low-confidence results
+    4. Validates results against TMDB
+    5. Returns the best possible identification
+
+    Features:
+    - Multi-parser consensus with weighted voting
+    - Automatic LLM fallback for low confidence
+    - Configurable parser selection
+    - TMDB validation and enrichment
+    - Episode extraction for TV content
     """
 
     def __init__(
@@ -66,7 +81,8 @@ class TorrentContentDetector:
         enable_enricher: bool = False,
         enricher_cache_path: str = "/tmp/torrent_match/tmdb.sqlite",
         enricher_use_local_cache: bool = True,
-        enricher_min_popularity: float = 10.0
+        enricher_min_popularity: float = 10.0,
+        parsers: Optional[List[str]] = None
     ):
         """
         Initialize the torrent content detector.
@@ -83,6 +99,9 @@ class TorrentContentDetector:
             enricher_cache_path: Path to SQLite cache for enricher
             enricher_use_local_cache: Whether enricher should use local cache
             enricher_min_popularity: Minimum popularity threshold for enricher cache
+            parsers: Optional list of parser names to use (e.g., ['guessit', 'ptn', 'llm']).
+                    Valid names: 'guessit', 'ptn', 'rebulk', 'regex', 'llm'.
+                    If None, uses all available parsers.
         """
         self.preprocessor = PreProcessor()
         self.file_structure_detector = FileStructureDetector()
@@ -121,7 +140,8 @@ class TorrentContentDetector:
             include_llm=use_llm_fallback,
             llm_api_key=llm_api_key,
             llm_api_endpoint=llm_api_endpoint,
-            llm_model=llm_model
+            llm_model=llm_model,
+            parser_names=parsers
         )
 
         if not self.parsers:
@@ -285,6 +305,92 @@ class TorrentContentDetector:
                 result.metadata['title_confidence'] = title_metadata
             else:
                 result.metadata['title_confidence'].update(title_metadata)
+
+            # AUTOMATIC LLM FALLBACK: If confidence is low, try LLM parser
+            if confidence_level in [ConfidenceLevel.LOW, ConfidenceLevel.VERY_LOW]:
+                vprint(f"Confidence is {confidence_level.name} ({title_confidence:.2f}), attempting LLM fallback...")
+
+                # Find LLM parser in the pipeline
+                llm_parser = None
+                for parser in self.parsers:
+                    if parser.__class__.__name__ == 'LLMParser':
+                        llm_parser = parser
+                        break
+
+                if llm_parser:
+                    try:
+                        llm_result = llm_parser.parse(torrent_name, content)
+
+                        if llm_result and llm_result.title:
+                            vprint(f"LLM parser succeeded: {llm_result.title}")
+
+                            # Use LLM result directly, but validate with TMDB if available
+                            llm_identification = None
+                            if self.tmdb_validator:
+                                is_valid, llm_identification = self.tmdb_validator.validate_and_enrich(llm_result)
+
+                                if is_valid and llm_identification:
+                                    # Use TMDB-validated LLM result
+                                    result = llm_identification
+                                    result.parser_used = "LLM (fallback)"
+                                    result.metadata['llm_fallback'] = True
+                                    result.metadata['original_confidence'] = {
+                                        'level': confidence_level.name,
+                                        'score': title_confidence
+                                    }
+                                    vprint(f"Using TMDB-validated LLM result")
+                                else:
+                                    # Use LLM result without TMDB validation
+                                    result = MediaIdentification(
+                                        imdb_id=None,
+                                        tmdb_id=None,
+                                        title=llm_result.title,
+                                        year=llm_result.year,
+                                        media_type=llm_result.media_type,
+                                        season=llm_result.season,
+                                        episode=llm_result.episode,
+                                        confidence=ConfidenceLevel.MEDIUM,  # Trust LLM moderately
+                                        parser_used="LLM (fallback)",
+                                        tmdb_match=False,
+                                        metadata={
+                                            'llm_fallback': True,
+                                            'original_confidence': {
+                                                'level': confidence_level.name,
+                                                'score': title_confidence
+                                            },
+                                            'llm_raw_data': llm_result.raw_data
+                                        }
+                                    )
+                                    vprint(f"Using LLM result without TMDB validation")
+                            else:
+                                # No TMDB validator, use LLM result directly
+                                result = MediaIdentification(
+                                    imdb_id=None,
+                                    tmdb_id=None,
+                                    title=llm_result.title,
+                                    year=llm_result.year,
+                                    media_type=llm_result.media_type,
+                                    season=llm_result.season,
+                                    episode=llm_result.episode,
+                                    confidence=ConfidenceLevel.MEDIUM,  # Trust LLM moderately
+                                    parser_used="LLM (fallback)",
+                                    tmdb_match=False,
+                                    metadata={
+                                        'llm_fallback': True,
+                                        'original_confidence': {
+                                            'level': confidence_level.name,
+                                            'score': title_confidence
+                                        },
+                                        'llm_raw_data': llm_result.raw_data
+                                    }
+                                )
+                                vprint(f"Using LLM result (no TMDB validator)")
+                        else:
+                            vprint(f"LLM parser returned no result")
+                    except Exception as e:
+                        vprint(f"LLM fallback failed: {e}")
+                else:
+                    vprint(f"LLM parser not available in pipeline")
 
         # Add episode information to metadata if available
         if episode_list is not None and len(episode_list) > 0:
@@ -641,7 +747,14 @@ class TorrentContentDetector:
         consensus_title = best_title_data['original']
 
         # Find most common year
-        years = [r.year for r in parse_results if r.year]
+        years = []
+        for r in parse_results:
+            if r.year is not None:
+                # Handle both single values and lists
+                if isinstance(r.year, list):
+                    years.extend(r.year)
+                else:
+                    years.append(r.year)
         consensus_year = max(set(years), key=years.count) if years else None
 
         # Find most common media type

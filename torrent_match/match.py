@@ -5,6 +5,14 @@ This module provides a simplified API for matching torrent names, file lists,
 or full `.torrent` files to their corresponding media content (movies/TV
 shows). It wraps the lower-level detector orchestration with convenience
 utilities tailored for common usage patterns.
+
+Features:
+- Multi-parser consensus system with weighted voting
+- Automatic LLM fallback when confidence is low
+- Parser selection to use specific parsers only
+- TMDB integration for validation and enrichment
+- Batch processing with parallel execution
+- Torrent file parsing support
 """
 
 import os
@@ -87,6 +95,7 @@ class TorrentMatcher:
         cache_db_path: Optional[str] = None,
         enricher_cache_path: Optional[str] = None,
         verbose: bool = False,
+        parsers: Optional[List[str]] = None,
     ):
         """
         Initialize the matcher with optional configuration.
@@ -101,6 +110,9 @@ class TorrentMatcher:
             cache_db_path: Path to cache database
             enricher_cache_path: Path to enricher cache database
             verbose: Enable verbose logging
+            parsers: Optional list of parser names to use (e.g., ['guessit', 'ptn', 'llm']).
+                    Valid names: 'guessit', 'ptn', 'rebulk', 'regex', 'llm'.
+                    If None, uses all available parsers.
         """
         # Initialize verbose mode
         if verbose:
@@ -129,6 +141,7 @@ class TorrentMatcher:
             enable_caching=True,
             enable_enricher=enable_enricher,
             enricher_cache_path=enricher_cache_path or "/tmp/torrent_match/tmdb.sqlite",
+            parsers=parsers,
         )
 
     def match(
@@ -269,16 +282,20 @@ def match(
     torrent_name: str,
     files: Optional[Union[List[str], List[Dict[str, Any]]]] = None,
     detail: bool = False,
+    parsers: Optional[List[str]] = None,
 ) -> Union[MediaIdentification, Dict[str, Any]]:
     """
     Match a single torrent using the default matcher.
 
-    This is a convenience function that uses a shared TorrentMatcher instance.
+    This is a convenience function that uses a shared TorrentMatcher instance
+    unless parsers is specified, in which case a new matcher is created.
 
     Args:
         torrent_name: The torrent name to match
         files: Optional list of file paths or file info dicts
         detail: Return detailed output dict
+        parsers: Optional list of parser names to use (e.g., ['guessit', 'ptn', 'llm']).
+                If specified, creates a new matcher instead of using the default.
 
     Returns:
         MediaIdentification object or dict
@@ -287,8 +304,15 @@ def match(
         >>> from torrent_match import match
         >>> result = match("The.Matrix.1999.1080p")
         >>> print(result.title, result.year)
+
+        >>> # Use only specific parsers
+        >>> result = match("Movie.2023", parsers=['ptn', 'llm'])
     """
-    matcher = _get_default_matcher()
+    if parsers is not None:
+        # Create a new matcher with specified parsers
+        matcher = TorrentMatcher(parsers=parsers)
+    else:
+        matcher = _get_default_matcher()
     return matcher.match(torrent_name, files, detail)
 
 
@@ -297,6 +321,7 @@ def match_batch(
     max_workers: int = 5,
     show_progress: bool = True,
     detail: bool = False,
+    parsers: Optional[List[str]] = None,
 ) -> List[Union[MediaIdentification, Dict[str, Any]]]:
     """
     Match multiple torrents using the default matcher.
@@ -306,6 +331,8 @@ def match_batch(
         max_workers: Maximum parallel workers
         show_progress: Show progress
         detail: Return detailed output dicts
+        parsers: Optional list of parser names to use (e.g., ['guessit', 'ptn', 'llm']).
+                If specified, creates a new matcher instead of using the default.
 
     Returns:
         List of MediaIdentification objects or dicts
@@ -316,14 +343,22 @@ def match_batch(
         ...     "Movie.Name.2023.1080p",
         ...     "TV.Show.S01E01.720p"
         ... ])
+
+        >>> # Use only LLM parser
+        >>> results = match_batch(torrents, parsers=['llm'])
     """
-    matcher = _get_default_matcher()
+    if parsers is not None:
+        # Create a new matcher with specified parsers
+        matcher = TorrentMatcher(parsers=parsers)
+    else:
+        matcher = _get_default_matcher()
     return matcher.match_batch(torrents, max_workers, show_progress, detail)
 
 
 def match_from_sample(
     sample: DatasetSample,
     detail: bool = False,
+    parsers: Optional[List[str]] = None,
 ) -> Union[MediaIdentification, Dict[str, Any]]:
     """
     Match from a DatasetSample using the default matcher.
@@ -331,17 +366,24 @@ def match_from_sample(
     Args:
         sample: DatasetSample with torrent information
         detail: Return detailed output dict
+        parsers: Optional list of parser names to use (e.g., ['guessit', 'ptn', 'llm']).
+                If specified, creates a new matcher instead of using the default.
 
     Returns:
         MediaIdentification object or dict
     """
-    matcher = _get_default_matcher()
+    if parsers is not None:
+        # Create a new matcher with specified parsers
+        matcher = TorrentMatcher(parsers=parsers)
+    else:
+        matcher = _get_default_matcher()
     return matcher.match_from_sample(sample, detail)
 
 
 def match_torrent_file(
     torrent_file: Union[str, os.PathLike, Path],
     detail: bool = False,
+    parsers: Optional[List[str]] = None,
 ) -> Union[MediaIdentification, Dict[str, Any]]:
     """
     Match a torrent by providing the `.torrent` file path.
@@ -349,9 +391,15 @@ def match_torrent_file(
     Args:
         torrent_file: Path to the torrent file.
         detail: Return detailed output dict.
+        parsers: Optional list of parser names to use (e.g., ['guessit', 'ptn', 'llm']).
+                If specified, creates a new matcher instead of using the default.
 
     Returns:
         MediaIdentification object or dict.
     """
-    matcher = _get_default_matcher()
+    if parsers is not None:
+        # Create a new matcher with specified parsers
+        matcher = TorrentMatcher(parsers=parsers)
+    else:
+        matcher = _get_default_matcher()
     return matcher.match_torrent_file(torrent_file, detail)

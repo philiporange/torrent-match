@@ -1,0 +1,166 @@
+{
+  "name": "torrent-match",
+  "version": "0.1.0",
+  "short_description": "Identify movies and TV shows from torrent names using multi-parser consensus and LLM fallback.",
+  "long_description": "Torrent Match is a robust Python module for identifying media content (movies and TV shows) from torrent names and file structures. It uses a sophisticated multi-parser consensus system that runs GuessIt, PTN, ReBulk, and Regex parsers simultaneously, combining their results through weighted voting to achieve accurate detection. When consensus confidence is low, it automatically invokes an LLM parser as a fallback. The system distinguishes between granular media types (movies, TV episodes, season packs, multi-season packs) and integrates with TMDB for validation and enrichment with IMDB IDs, metadata, genres, and ratings. It supports batch processing with parallel execution, torrent file parsing, and includes a complete dataset processing pipeline for analyzing large torrent collections.",
+  "keywords": [
+    "torrent",
+    "media-identification",
+    "movie-detection",
+    "tv-detection",
+    "parser-consensus",
+    "llm-fallback",
+    "tmdb-integration",
+    "imdb",
+    "torrent-parsing",
+    "batch-processing",
+    "metadata-extraction",
+    "content-detection",
+    "python-library",
+    "cli-tool"
+  ],
+  "primary_language": "Python",
+  "languages": [
+    "Python"
+  ],
+  "frameworks": [
+    "GuessIt",
+    "PTN (parse-torrent-title)",
+    "ReBulk",
+    "TMDB API",
+    "OpenAI/OpenRouter LLM"
+  ],
+  "modules": [
+    {
+      "path": "torrent_match/__init__.py",
+      "description": "Public API package exports providing clean interface for library usage with main functions and classes."
+    },
+    {
+      "path": "torrent_match/match.py",
+      "description": "Core matching API providing simplified functions (match, match_batch, match_torrent_file) and TorrentMatcher class for torrent identification."
+    },
+    {
+      "path": "torrent_match/cli.py",
+      "description": "Command-line interface with commands for single torrent identification, batch processing, dataset processing, and analysis."
+    },
+    {
+      "path": "torrent_match/torrent_file_parser.py",
+      "description": "Torrent file (.torrent) parsing and decoding to extract torrent names and file structures."
+    },
+    {
+      "path": "torrent_detector/__init__.py",
+      "description": "Core detector module exports including TorrentContentDetector, models, file structure detector, and enricher."
+    },
+    {
+      "path": "torrent_detector/detector.py",
+      "description": "Main TorrentContentDetector orchestrator coordinating multi-parser consensus, TMDB validation, and confidence scoring."
+    },
+    {
+      "path": "torrent_detector/models.py",
+      "description": "Data models defining MediaType, ConfidenceLevel, ParseResult, MediaIdentification, and other core data structures."
+    },
+    {
+      "path": "torrent_detector/parsers/base.py",
+      "description": "Base Parser class defining the interface for all parser implementations."
+    },
+    {
+      "path": "torrent_detector/parsers/guessit_parser.py",
+      "description": "GuessIt parser implementation (weight: 1.0) - most reliable parser for title extraction."
+    },
+    {
+      "path": "torrent_detector/parsers/ptn_parser.py",
+      "description": "PTN (parse-torrent-title) parser implementation (weight: 0.8) - very good secondary parser."
+    },
+    {
+      "path": "torrent_detector/parsers/rebulk_parser.py",
+      "description": "ReBulk parser implementation (weight: 0.6) - pattern matching parser for content detection."
+    },
+    {
+      "path": "torrent_detector/parsers/regex_parser.py",
+      "description": "Regex parser implementation (weight: 0.2) - basic fallback parser using regular expressions."
+    },
+    {
+      "path": "torrent_detector/parsers/llm_parser.py",
+      "description": "LLM parser using OpenAI/OpenRouter API as intelligent fallback for ambiguous torrent names."
+    },
+    {
+      "path": "torrent_detector/tmdb_validator.py",
+      "description": "TMDB integration for validating parsed results and retrieving IMDB IDs and metadata."
+    },
+    {
+      "path": "torrent_detector/tmdb_enricher.py",
+      "description": "TMDB enricher for adding comprehensive media information including cast, crew, genres, ratings, and posters."
+    },
+    {
+      "path": "torrent_detector/file_structure_detector.py",
+      "description": "Analyzes torrent file structure and file sizes to determine media type (movie vs TV)."
+    },
+    {
+      "path": "torrent_detector/episode_extractor.py",
+      "description": "Extracts specific episode and season information from torrent file structures and filenames."
+    },
+    {
+      "path": "torrent_detector/preprocessor.py",
+      "description": "Preprocesses and normalizes torrent names before parsing."
+    },
+    {
+      "path": "torrent_detector/title_confidence.py",
+      "description": "Implements consensus-based title selection and confidence scoring from multiple parsers."
+    },
+    {
+      "path": "torrent_detector/verbose.py",
+      "description": "Verbose logging utilities and environment initialization helpers."
+    }
+  ],
+  "dependencies": {
+    "core": [
+      "guessit>=3.4.0",
+      "parse-torrent-title>=2.0.0",
+      "rebulk>=3.1.0",
+      "tmdbsimple>=2.9.1",
+      "redislite>=6.2.0",
+      "requests>=2.31.0",
+      "openai>=1.0.0",
+      "python-dotenv>=1.0.0"
+    ],
+    "dev": [
+      "pytest>=7.0.0",
+      "pytest-cov>=4.0.0"
+    ]
+  },
+  "python_version_required": ">=3.8",
+  "author": "Philip Orange <git@philiporange.com>",
+  "license": "CC0-1.0",
+  "repository": "https://github.com/philiporange/torrent-match",
+  "features": [
+    "Multi-parser consensus with weighted voting",
+    "Automatic LLM fallback for low confidence",
+    "Parser selection to use specific parsers only",
+    "Granular media type classification",
+    "TMDB integration for validation and enrichment",
+    "Consensus-based confidence scoring",
+    "Episode extraction from file structures",
+    "Dual output modes (simple and detailed)",
+    "Batch processing with parallel execution",
+    "Torrent file parsing support",
+    "Dataset processing pipeline",
+    "TMDB enricher with offline cache capability"
+  ],
+  "entry_points": {
+    "cli": "torrent-match = torrent_match.cli:main"
+  },
+  "git": {
+    "is_repo": true,
+    "remote_url": "https://github.com/philiporange/torrent-match.git",
+    "github_name": "philiporange/torrent-match",
+    "default_branch": "master",
+    "last_commit": "2025-10-29T15:03:24+00:00"
+  },
+  "stats": {
+    "files": 51,
+    "lines_of_code": 9343,
+    "size_bytes": 76035320
+  },
+  "generated_at": "2025-12-06T19:41:22.794421",
+  "generator_version": "1.0.0"
+}

@@ -8,11 +8,14 @@ across parsers.
 
 Key principles:
 - Higher-trust parsers (GuessIt, PTN) have more influence on confidence
-- Lower-trust parsers (Regex) have minimal impact
+- Parser weighting: GuessIt (1.0) > PTN (0.85) > ReBulk (0.6) > Regex (0.15)
+- Lower-trust parsers (Regex) have minimal impact on consensus
 - Parser-provided confidence values are INTENTIONALLY IGNORED
 - Only title agreement matters - no TMDB, year, episodes, or file structure
 - If only weak parsers agree, confidence stays low
 - If strong parsers disagree, confidence cannot be high
+- Years that are part of the title (e.g., "Blade Runner 2049", "Apollo 18")
+  are preserved during title normalization
 
 The output is a single confidence score that represents title certainty.
 """
@@ -24,12 +27,13 @@ from .models import ParseResult, ConfidenceLevel
 
 
 # Parser trust weights: higher = more reliable for title extraction
+# Weighting based on empirical accuracy: GuessIt > PTN > ReBulk > Regex
 PARSER_TRUST = {
-    "GuessIt": 1.0,      # Most reliable for title
-    "PTN": 0.8,          # Very good secondary parser
-    "ReBulk": 0.6,       # Decent pattern matching
+    "GuessIt": 1.0,      # Most reliable for title - highest accuracy
+    "PTN": 0.85,         # Better than ReBulk - second most accurate
+    "ReBulk": 0.6,       # Decent pattern matching - third tier
     "LLM": 0.5,          # Good on weird cases but can hallucinate
-    "Regex": 0.2,        # Noisy, last resort
+    "Regex": 0.15,       # Least likely to be correct - last resort
 }
 
 
@@ -37,8 +41,12 @@ def clean_candidate_title(raw_title: str) -> str:
     """
     Clean a parser's raw title output by removing obvious metadata junk.
 
-    This removes years, quality indicators, season/episode markers, and other
+    This removes quality indicators, season/episode markers, and other
     non-title content that parsers sometimes include in their title field.
+
+    IMPORTANT: Years that appear to be part of the title (like "Blade Runner 2049")
+    are preserved. Only remove years when they appear in parentheses or brackets,
+    or when followed by quality/source indicators that suggest it's release metadata.
 
     Args:
         raw_title: Raw title string from parser
@@ -53,9 +61,6 @@ def clean_candidate_title(raw_title: str) -> str:
 
     # Remove common separators at start/end
     title = title.strip('.-_ ')
-
-    # Remove trailing year patterns like "2023" or "(2023)"
-    title = re.sub(r'\s*[\(\[]?\d{4}[\)\]]?\s*$', '', title)
 
     # Remove quality indicators (1080p, 720p, BluRay, WEB-DL, etc.)
     quality_pattern = r'\b(1080p|720p|480p|2160p|4K|BluRay|BRRip|WEB-DL|WEBRip|HDTV|DVDRip|XviD|x264|x265|HEVC|10bit)\b'
@@ -72,6 +77,11 @@ def clean_candidate_title(raw_title: str) -> str:
 
     # Remove source indicators (WEB, DVD, etc.) if at end
     title = re.sub(r'\s+(?:WEB|DVD|BD|BluRay|HDTV).*$', '', title, flags=re.IGNORECASE)
+
+    # Remove trailing years ONLY when in parentheses/brackets (clear metadata)
+    # This preserves years that are part of the title like "Blade Runner 2049"
+    # Examples: "Matrix (1999)" -> "Matrix" but "Blade Runner 2049" -> "Blade Runner 2049"
+    title = re.sub(r'\s*[\(\[]\d{4}[\)\]]\s*$', '', title)
 
     # Collapse multiple spaces
     title = re.sub(r'\s+', ' ', title).strip()

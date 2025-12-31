@@ -5,6 +5,8 @@ A robust Python module for identifying media content (movies/TV shows) from torr
 ## Features
 
 - **Multi-Parser Consensus**: Runs GuessIt, PTN, ReBulk, and Regex parsers simultaneously, using weighted consensus for confidence
+- **Automatic LLM Fallback**: When consensus confidence is low, automatically invokes LLM parser for a second attempt
+- **Parser Selection**: Choose specific parsers to use (e.g., only PTN and LLM) instead of running all parsers
 - **Granular Media Types**: Distinguishes between movies, TV episodes, season packs, and multi-season packs
 - **TMDB Integration**: Validates parsed results and enriches with IMDB IDs, metadata, genres, ratings
 - **Consensus Confidence**: Confidence based purely on parser agreement (not individual parser confidence)
@@ -95,6 +97,12 @@ print(f"{torrent_result.title} ({torrent_result.year}) - {torrent_result.media_t
 # Use TorrentMatcher class for more control
 matcher = TorrentMatcher(enable_enricher=True)
 result = matcher.match("Interstellar.2014", detail=True)
+
+# Use only specific parsers
+result = match("Movie.2023", parsers=['ptn', 'guessit'])
+
+# Use only LLM parser
+result = match("ambiguous title", parsers=['llm'])
 ```
 
 See `examples/simple_match.py` for more examples.
@@ -108,8 +116,14 @@ torrent-match identify "The.Matrix.1999.1080p.BluRay.x264"
 # Identify from a .torrent file
 torrent-match identify --torrent-file /path/to/file.torrent
 
+# Use specific parsers only
+torrent-match identify "Movie.2023" --parsers "ptn,llm"
+
 # Batch process from a file
 torrent-match batch torrents.txt --output results.json
+
+# Batch process with specific parsers
+torrent-match batch torrents.txt --parsers "guessit,ptn" --output results.json
 
 # Process a dataset
 torrent-match process-dataset dataset.json --output processed.json
@@ -225,6 +239,8 @@ print(f"Poster saved to: {poster_path}")
 
 ### With LLM Fallback
 
+The LLM parser is automatically used when the consensus confidence is LOW or VERY_LOW, providing a second chance for difficult or ambiguous torrent names.
+
 ```bash
 # For OpenRouter (recommended, cheaper)
 export LLM_API_KEY="your_openrouter_api_key"
@@ -242,11 +258,20 @@ detector = TorrentContentDetector(
     llm_api_key="your_llm_key",
     llm_api_endpoint="https://openrouter.ai/api/v1",
     llm_model="google/gemini-2.0-flash-exp",
-    use_llm_fallback=True
+    use_llm_fallback=True  # Enable automatic LLM fallback
 )
 
-# LLM will be used as fallback for difficult cases
+# LLM will be automatically invoked if regular parsers have low confidence
 result = detector.identify("matrix 1999 movie")
+
+# You can also use only the LLM parser
+detector_llm_only = TorrentContentDetector(
+    llm_api_key="your_llm_key",
+    llm_api_endpoint="https://openrouter.ai/api/v1",
+    llm_model="google/gemini-2.0-flash-exp",
+    parsers=['llm']  # Only use LLM parser
+)
+result = detector_llm_only.identify("ambiguous title")
 ```
 
 ### Dataset Processing Pipeline
@@ -331,6 +356,35 @@ All parsers run simultaneously. The final result is determined by:
 - **Media Type**: Most common type across parsers (preserves granular types like `tv_episode`)
 - **TMDB Validation**: Preserves specific TV media types (episode/season/multi-season)
 
+### Automatic LLM Fallback
+
+When the consensus confidence is **LOW** or **VERY_LOW**, the system automatically invokes the LLM parser (if available and configured) as a fallback. The LLM parser's output is used directly, replacing the low-confidence consensus result. This ensures difficult or ambiguous torrent names get a second chance at accurate parsing.
+
+To enable automatic LLM fallback:
+- Set `use_llm_fallback=True` when initializing the detector
+- Provide LLM API credentials via environment variables or constructor parameters
+- The LLM will only be invoked when regular parsers produce low-confidence results
+
+### Parser Selection
+
+You can specify which parsers to use instead of running all of them:
+
+```python
+from torrent_match import match, TorrentMatcher
+
+# Use only specific parsers
+result = match("Movie.2023", parsers=['ptn', 'guessit'])
+
+# Use only LLM parser
+result = match("ambiguous title", parsers=['llm'])
+
+# Or configure at matcher level
+matcher = TorrentMatcher(parsers=['guessit', 'ptn'])
+result = matcher.match("Movie.2023")
+```
+
+Valid parser names: `'guessit'`, `'ptn'`, `'rebulk'`, `'regex'`, `'llm'`
+
 ## Library API Reference
 
 ### `match()` - Quick single match
@@ -362,7 +416,8 @@ from torrent_match import TorrentMatcher
 # Create matcher with custom settings
 matcher = TorrentMatcher(
     enable_enricher=True,
-    verbose=True
+    verbose=True,
+    parsers=['guessit', 'ptn', 'llm']  # Optional: specify parsers to use
 )
 
 # Match with files
@@ -382,6 +437,12 @@ print(detailed['detail']['genres'])
 
 ```bash
 torrent-match identify "The.Matrix.1999.1080p" --detail --json
+
+# Use only specific parsers
+torrent-match identify "Movie.2023" --parsers "ptn,llm"
+
+# Use only LLM parser
+torrent-match identify "ambiguous title" --parsers "llm"
 ```
 
 Options:
@@ -389,6 +450,7 @@ Options:
 - `--detail` - Show detailed metadata
 - `--json` - Output as JSON
 - `--enricher` - Enable TMDB enricher
+- `--parsers "parser1,parser2"` - Comma-separated list of parsers (guessit, ptn, rebulk, regex, llm)
 
 ### `batch` - Process multiple torrents
 
@@ -398,6 +460,9 @@ echo "The.Matrix.1999.1080p" > torrents.txt
 echo "Inception.2010.720p" >> torrents.txt
 
 torrent-match batch torrents.txt --output results.json --workers 10
+
+# Use only specific parsers for batch processing
+torrent-match batch torrents.txt --parsers "guessit,ptn" --output results.json
 ```
 
 Options:
@@ -405,6 +470,7 @@ Options:
 - `--detail` - Include detailed metadata
 - `--workers N` - Number of parallel workers
 - `--enricher` - Enable TMDB enricher
+- `--parsers "parser1,parser2"` - Comma-separated list of parsers (guessit, ptn, rebulk, regex, llm)
 
 ### `process-dataset` - Process dataset
 
@@ -483,12 +549,13 @@ detector = TorrentContentDetector(
     llm_api_endpoint="https://openrouter.ai/api/v1",
     llm_model="google/gemini-2.0-flash-exp",
     cache_db_path="/tmp/torrent_interpret.db",
-    use_llm_fallback=True,
+    use_llm_fallback=True,  # Enables automatic LLM fallback for low confidence
     enable_caching=True,
     enable_enricher=True,  # Enable rich media info
     enricher_cache_path="/tmp/torrent_match/tmdb.sqlite",
     enricher_use_local_cache=True,
-    enricher_min_popularity=10.0
+    enricher_min_popularity=10.0,
+    parsers=['guessit', 'ptn', 'llm']  # Optional: specify which parsers to use
 )
 
 # Batch processing with parallel execution
@@ -497,6 +564,13 @@ results = detector.identify_batch([
     ("TV.Show.S01E01", files2),
     # ... more torrents
 ], max_workers=10)
+
+# Use TorrentMatcher with parser selection
+matcher = TorrentMatcher(
+    parsers=['ptn', 'llm'],  # Only use PTN and LLM parsers
+    use_llm_fallback=True    # LLM will be used automatically for low confidence
+)
+result = matcher.match("ambiguous.movie.title")
 ```
 
 ## Media Types

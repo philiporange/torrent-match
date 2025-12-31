@@ -108,6 +108,11 @@ Environment Variables:
         type=Path,
         help='Path to a .torrent file to parse directly'
     )
+    identify_parser.add_argument(
+        '--parsers',
+        type=str,
+        help='Comma-separated list of parsers to use (e.g., "ptn,llm" or "guessit,rebulk,regex"). Valid: guessit, ptn, rebulk, regex, llm'
+    )
 
     # Batch command
     batch_parser = subparsers.add_parser(
@@ -140,6 +145,11 @@ Environment Variables:
         '--enricher',
         action='store_true',
         help='Enable TMDB enricher'
+    )
+    batch_parser.add_argument(
+        '--parsers',
+        type=str,
+        help='Comma-separated list of parsers to use (e.g., "ptn,llm" or "guessit,rebulk,regex"). Valid: guessit, ptn, rebulk, regex, llm'
     )
 
     # Process dataset command
@@ -228,9 +238,15 @@ def cmd_identify(args: argparse.Namespace) -> int:
     else:
         init_from_env()
 
+    # Parse parsers list if provided
+    parsers_list = None
+    if args.parsers:
+        parsers_list = [p.strip() for p in args.parsers.split(',') if p.strip()]
+
     matcher = TorrentMatcher(
         enable_enricher=args.enricher,
-        verbose=args.verbose
+        verbose=args.verbose,
+        parsers=parsers_list
     )
 
     result: Union[MediaIdentification, Dict[str, Any]]
@@ -290,9 +306,15 @@ def cmd_batch(args: argparse.Namespace) -> int:
 
     print(f"Processing {len(torrents)} torrents...", file=sys.stderr)
 
+    # Parse parsers list if provided
+    parsers_list = None
+    if args.parsers:
+        parsers_list = [p.strip() for p in args.parsers.split(',') if p.strip()]
+
     matcher = TorrentMatcher(
         enable_enricher=args.enricher,
-        verbose=args.verbose
+        verbose=args.verbose,
+        parsers=parsers_list
     )
 
     results = matcher.match_batch(
