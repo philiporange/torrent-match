@@ -33,7 +33,6 @@ from .match import (
 )
 
 __version__ = "0.1.0"
-__author__ = "Philip Orange <git@philiporange.com>"
 
 __all__ = [
     # Main functions

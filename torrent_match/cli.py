@@ -361,8 +361,8 @@ def cmd_process_dataset(args: argparse.Namespace) -> int:
         print(f"Error: Dataset file {args.dataset} not found", file=sys.stderr)
         return 1
 
-    # Import the process_dataset module
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    # Import the process_dataset module from scripts/
+    sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
     from process_dataset import (
         load_dataset,
         create_detector,
@@ -410,8 +410,8 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         print(f"Error: Input file {args.input} not found", file=sys.stderr)
         return 1
 
-    # Import the analyse_dataset module
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    # Import the analyse_dataset module from scripts/
+    sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
     from analyse_dataset import (
         generate_summary,
         analyze_detection_accuracy,
@@ -482,8 +482,8 @@ def cmd_test(args: argparse.Namespace) -> int:
         print(f"Error: Dataset file {args.dataset} not found", file=sys.stderr)
         return 1
 
-    # Import and run the test module
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    # Import and run the test module from scripts/
+    sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
     import test
 
     # Override sys.argv for the test module

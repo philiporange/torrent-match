@@ -20,35 +20,26 @@ A robust Python module for identifying media content (movies/TV shows) from torr
 
 ```
 torrent_match/
-├── torrent_match/             # Public API (use this in your projects)
-│   ├── __init__.py            # Package exports
-│   ├── match.py               # Simple matching API
-│   └── cli.py                 # Command-line interface
+├── torrent_match/             # Public API
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── match.py
+│   └── cli.py
 ├── torrent_detector/          # Core detection module
-│   ├── detector.py            # Core detection engine
-│   ├── parsers/               # Parser implementations
-│   ├── tmdb_validator.py      # TMDB integration
-│   ├── tmdb_enricher.py       # TMDB enrichment for detailed metadata
-│   ├── episode_extractor.py   # Episode extraction from file structures
-│   ├── file_structure_detector.py  # File structure analysis
-│   └── ...
-├── generate_dataset/          # Dataset generation tools
-│   ├── sample.py              # Sample data generation
-│   ├── generate_peer_stats.py # Peer statistics generation
-│   └── ...
-├── analysis/                  # Analysis tools
-│   ├── run_analysis.py        # Main analysis runner
-│   ├── detector_agreement_analysis.py  # Parser agreement analysis
-│   ├── individual_detector_analysis.py # Individual parser analysis
-│   └── ...
-├── examples/                  # Usage examples
-│   └── simple_match.py        # Simple API examples
-├── process_dataset.py         # Process dataset samples
-├── analyse_dataset.py         # Analyze processed results
-├── test.py                    # Test suite
-├── dataset.json              # Sample dataset
-├── pyproject.toml             # Package configuration and dependencies
-├── requirements.txt           # Development requirements
+│   ├── detector.py
+│   ├── parsers/
+│   ├── tmdb_validator.py
+│   ├── tmdb_enricher.py
+│   ├── episode_extractor.py
+│   └── file_structure_detector.py
+├── scripts/                   # Dataset processing scripts
+│   ├── process_dataset.py
+│   ├── analyse_dataset.py
+│   └── test.py
+├── examples/
+├── tests/
+├── pyproject.toml
+├── requirements.txt
 └── README.md
 ```
 
@@ -280,13 +271,13 @@ Process large torrent datasets and generate comprehensive analysis:
 
 ```bash
 # Step 1: Process dataset (generates id/input/output structure)
-python process_dataset.py \
+python scripts/process_dataset.py \
   --dataset dataset.json \
   --output /tmp/processed_dataset.json \
   --limit 1000
 
 # Step 2: Analyze processed results
-python analyse_dataset.py \
+python scripts/analyse_dataset.py \
   --input /tmp/processed_dataset.json \
   --output /tmp/analysis_results.json
 ```
@@ -500,7 +491,7 @@ torrent-match test --dataset dataset.json --limit 100
 Run the comprehensive test suite:
 
 ```bash
-python test.py
+python scripts/test.py
 # or
 torrent-match test
 ```
@@ -638,13 +629,13 @@ print(result.to_dict(detail=True))
 
 ```bash
 # 1. Process your dataset
-python process_dataset.py \
+python scripts/process_dataset.py \
   --dataset dataset.json \
   --output /tmp/processed.json \
   --limit 1000
 
 # 2. Analyze the results
-python analyse_dataset.py \
+python scripts/analyse_dataset.py \
   --input /tmp/processed.json \
   --output /tmp/analysis.json
 
@@ -657,11 +648,3 @@ cat /tmp/analysis.json | jq '.detection_accuracy'
 - **README.md** (this file) - Overview and quick start
 - **USAGE.md** - Detailed usage guide with examples
 - **dataset.md** - Dataset format specification
-
-## License
-
-CC0 - Public Domain
-
-## Author
-
-Philip Orange <git@philiporange.com>
