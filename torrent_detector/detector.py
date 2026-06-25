@@ -15,6 +15,12 @@ The system uses the most confident source at each level, with name patterns taki
 precedence for definitive indicators (confidence >= 0.95), and file structure being
 preferred when it has high confidence (>= 0.7) and name patterns are not definitive.
 
+Title Selection:
+When TMDB validation succeeds, the TMDB-returned title is used as the authoritative
+title. TMDB titles are considered canonical (e.g., "The Dark Knight" instead of
+"Batman The Dark Knight" from parser consensus). When TMDB validation fails, the
+parser consensus title is used instead.
+
 Confidence Scoring:
 The confidence score represents "how sure we are that the detected title is correct,"
 based ENTIRELY on weighted parser consensus. Parsers are assigned trust weights
@@ -291,13 +297,17 @@ class TorrentContentDetector:
                 metadata={'error': 'All parsers failed'}
             )
 
-        # Apply new title-based confidence system
-        # This OVERWRITES the confidence computed above with one based purely on title consensus
+        # Apply title-based confidence system
+        # Use parser consensus for confidence scoring, but preserve TMDB title when matched
         if all_parse_results:
             final_title, title_confidence, confidence_level, title_metadata = build_title_and_confidence(all_parse_results)
 
-            # Override title and confidence with consensus values
-            result.title = final_title
+            # Only override title if we don't have a TMDB match
+            # TMDB titles are authoritative and should be preserved
+            if not result.tmdb_match:
+                result.title = final_title
+
+            # Always use consensus-based confidence
             result.confidence = confidence_level
 
             # Store title confidence details in metadata

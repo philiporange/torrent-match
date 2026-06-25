@@ -107,6 +107,9 @@ class TMDBValidator:
                 cached_result = self.cache.get(cache_key)
                 if cached_result:
                     data = json.loads(cached_result)
+                    # Remove computed properties that aren't constructor arguments
+                    data.pop('medium', None)
+                    data.pop('confidence_value', None)
                     vprint(f"TMDB: Cache hit for movie: {parse_result.title}")
                     return True, MediaIdentification(**data)
 
@@ -136,15 +139,17 @@ class TMDBValidator:
             # Extract IMDB ID
             imdb_id = details.get('imdb_id')
 
-            # Calculate match score for confidence adjustment
+            # Calculate match score for title similarity
             match_score = self._calculate_match_score(
                 parse_result.title,
                 match.get('title', '')
             )
 
-            # Calculate final confidence
+            # Calculate confidence based on match score
+            # Parser confidence is no longer used - final confidence is determined
+            # by consensus in the detector, but we use match score for TMDB match quality
             confidence = self._calculate_final_confidence(
-                parse_result.confidence,
+                match_score,  # Use match score as base confidence
                 match_score
             )
 
@@ -197,6 +202,9 @@ class TMDBValidator:
                 cached_result = self.cache.get(cache_key)
                 if cached_result:
                     data = json.loads(cached_result)
+                    # Remove computed properties that aren't constructor arguments
+                    data.pop('medium', None)
+                    data.pop('confidence_value', None)
                     vprint(f"TMDB: Cache hit for TV show: {parse_result.title}")
                     return True, MediaIdentification(**data)
 
@@ -234,9 +242,11 @@ class TMDBValidator:
                 match.get('name', '')
             )
 
-            # Calculate final confidence
+            # Calculate confidence based on match score
+            # Parser confidence is no longer used - final confidence is determined
+            # by consensus in the detector, but we use match score for TMDB match quality
             confidence = self._calculate_final_confidence(
-                parse_result.confidence,
+                match_score,  # Use match score as base confidence
                 match_score
             )
 
@@ -369,6 +379,9 @@ class TMDBValidator:
                 cached_result = self.cache.get(cache_key)
                 if cached_result:
                     data = json.loads(cached_result)
+                    # Remove computed properties that aren't constructor arguments
+                    data.pop('medium', None)
+                    data.pop('confidence_value', None)
                     vprint(f"TMDB: Cache hit for IMDB ID: {imdb_id}")
                     return MediaIdentification(**data)
 
